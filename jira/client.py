@@ -21,6 +21,7 @@ import time
 import warnings
 from collections import OrderedDict
 from collections.abc import Iterable
+from enum import Enum
 from functools import lru_cache, wraps
 from io import BufferedReader
 from numbers import Number
@@ -130,6 +131,11 @@ def _field_worker(
 
 
 ResourceType = TypeVar("ResourceType", contravariant=True, bound=Resource)
+
+
+class DeploymentType(Enum):
+    Server = 1
+    Cloud = 2
 
 
 class ResultList(list, Generic[ResourceType]):
@@ -465,6 +471,19 @@ class JIRA(object):
         if proxies:
             self._session.proxies = proxies
 
+        self.deploymentType = DeploymentType.Server
+        if get_server_info:
+            # We need version in order to know what API calls are available or not, this doesn't require a login
+            si = self.server_info()
+            try:
+                self._version = tuple(si["versionNumbers"])
+            except Exception as e:
+                self.log.error("invalid server_info: %s", si)
+                raise e
+            self.deploymentType = DeploymentType[str(si.get("deploymentType"))]
+        else:
+            self._version = (0, 0, 0)
+
         self.auth = auth
         if validate:
             # This will raise an Exception if you are not allowed to login.
@@ -475,19 +494,6 @@ class JIRA(object):
                     oauth or basic_auth or jwt or kerberos or auth or "anonymous"
                 )
                 raise JIRAError(f"Can not log in with {str(auth_method)}")
-
-        self.deploymentType = None
-        if get_server_info:
-            # We need version in order to know what API calls are available or not
-            si = self.server_info()
-            try:
-                self._version = tuple(si["versionNumbers"])
-            except Exception as e:
-                self.log.error("invalid server_info: %s", si)
-                raise e
-            self.deploymentType = si.get("deploymentType")
-        else:
-            self._version = (0, 0, 0)
 
         if self._options["check_update"] and not JIRA.checked_version:
             self._check_update_()
@@ -507,7 +513,7 @@ class JIRA(object):
     @property
     def _is_cloud(self) -> bool:
         """Return whether we are on a Cloud based Jira instance."""
-        return self.deploymentType in ("Cloud",)
+        return self.deploymentType in (DeploymentType.Cloud,)
 
     def _create_cookie_auth(
         self,
@@ -2845,7 +2851,7 @@ class JIRA(object):
         Returns:
             User
         """
-        user = User(self._options, self._session)
+        user = User(self._options, self._session, deploymentType=self.deploymentType)
         params = {}
         if expand is not None:
             params["expand"] = expand
@@ -3037,6 +3043,7 @@ class JIRA(object):
         includeActive: bool = True,
         includeInactive: bool = False,
         query: Optional[str] = None,
+        **keywords,
     ) -> ResultList[User]:
         """Get a list of user Resources that match the specified search string.
         "username" query parameter is deprecated in Jira Cloud; the expected parameter now is "query", which can just be the full
@@ -3050,19 +3057,30 @@ class JIRA(object):
             includeActive (bool): If true, then active users are included in the results. (Default: True)
             includeInactive (bool): If true, then inactive users are included in the results. (Default: False)
             query (Optional[str]): Search term. It can just be the email.
+            keywords (Dict[str, Any]): Any additional parameters that REST API supports.
 
         Returns:
             ResultList[User]
         """
-        if not user and not query:
-            raise ValueError("Either 'user' or 'query' arguments must be specified.")
-
         params = {
             "username": user,
             "query": query,
             "includeActive": includeActive,
             "includeInactive": includeInactive,
         }
+        params.update(keywords)
+
+        username = "username" in params and params["username"] not in [None, "", " "]
+        query1 = "query" in params and params["query"] not in [None, "", " "]
+        accountId = "accountId" in params and params["accountId"] not in [None, "", " "]
+        if not username and not query1 and not accountId:
+            raise ValueError(
+                "Either 'user' or 'query' or 'accountId' arguments must be specified."
+            )
+        if query1 and accountId:
+            raise ValueError(
+                "The query parameters 'query' and 'accountId' are mutually exclusive."
+            )
 
         return self._fetch_pages(User, None, "user/search", startAt, maxResults, params)
 
@@ -3218,7 +3236,12 @@ class JIRA(object):
         url = "{server}{auth_url}".format(**self._options)
         r = self._session.get(url)
 
-        user = User(self._options, self._session, json_loads(r))
+        user = User(
+            self._options,
+            self._session,
+            json_loads(r),
+            deploymentType=self.deploymentType,
+        )
         return user
 
     def kill_session(self) -> Response:

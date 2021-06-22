@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union,
 
 from requests import Response
 
+from jira.client import DeploymentType
 from jira.resilientsession import ResilientSession
 from jira.utils import CaseInsensitiveDict, json_loads, threaded_requests
 
@@ -1029,8 +1030,16 @@ class User(Resource):
         options: Dict[str, str],
         session: ResilientSession,
         raw: Dict[str, Any] = None,
+        deploymentType: DeploymentType = DeploymentType.Server,
     ):
-        Resource.__init__(self, "user?username={0}", options, session)
+        Resource.__init__(
+            self,
+            "user?username={0}"
+            if not deploymentType != DeploymentType.Cloud
+            else "user?accountId={0}",
+            options,
+            session,
+        )
         if raw:
             self._parse_raw(raw)
 

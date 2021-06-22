@@ -3,6 +3,7 @@ import os
 from tests.conftest import (
     TEST_ICON_PATH,
     JiraTestCase,
+    JiraTestManager,
     broken_test,
     not_on_custom_jira_instance,
 )
@@ -183,3 +184,23 @@ class UserTests(JiraTestCase):
     def test_add_users_to_set(self):
         users_set = set([self.test_manager.user_admin, self.test_manager.user_admin])
         self.assertEqual(len(users_set), 1)
+
+
+class UserCloudTests(JiraTestCase):
+    def setUp(self):
+        self.test_manager = JiraTestManager("Cloud")
+        JiraTestCase.setUp(self)
+        self.issue = self.test_manager.project_b_issue3
+
+    def test_user(self):
+        user = self.jira.user(self.test_manager.user_normal.accountId)
+        self.assertTrue(user.name)
+        self.assertEqual(user.name, self.test_manager.user_normal.name)
+
+    def test_search_users(self):
+        users = self.jira.search_users(
+            accountId=self.test_manager.user_normal.accountId
+        )
+        self.assertGreaterEqual(len(users), 1)
+        usernames = map(lambda user: user.name, users)
+        self.assertIn(self.test_manager.user_normal.name, usernames)

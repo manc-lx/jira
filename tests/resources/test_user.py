@@ -3,9 +3,7 @@ import os
 from tests.conftest import (
     TEST_ICON_PATH,
     JiraTestCase,
-    JiraTestManager,
-    broken_test,
-    not_on_custom_jira_instance,
+    JiraTestManager
 )
 
 
@@ -45,7 +43,6 @@ class UserTests(JiraTestCase):
         )
         self.assertGreaterEqual(len(users), 0)
 
-    @not_on_custom_jira_instance
     def test_search_assignable_users_for_issues_by_project(self):
         users = self.jira.search_assignable_users_for_issues(
             self.test_manager.CI_JIRA_ADMIN, project=self.project_b
@@ -66,7 +63,6 @@ class UserTests(JiraTestCase):
         )
         self.assertGreaterEqual(len(users), 0)
 
-    @not_on_custom_jira_instance
     def test_search_assignable_users_for_issues_by_issue(self):
         users = self.jira.search_assignable_users_for_issues(
             self.test_manager.CI_JIRA_ADMIN, issueKey=self.issue
@@ -87,7 +83,6 @@ class UserTests(JiraTestCase):
         )
         self.assertGreaterEqual(len(users), 0)
 
-    @broken_test(reason="Jira may return 500")
     def test_user_avatars(self):
         # Tests the end-to-end user avatar creation process: upload as temporary, confirm after cropping,
         # and selection.
@@ -117,7 +112,6 @@ class UserTests(JiraTestCase):
         )  # observed values between 20-24 so far
         self.assertGreaterEqual(len(avatars["custom"]), 1)
 
-    @broken_test(reason="broken: set avatar returns 400")
     def test_set_user_avatar(self):
         def find_selected_avatar(avatars):
             for avatar in avatars["system"]:
@@ -129,22 +123,31 @@ class UserTests(JiraTestCase):
 
         avatars = self.jira.user_avatars(self.test_manager.CI_JIRA_ADMIN)
 
-        self.jira.set_user_avatar(self.test_manager.CI_JIRA_ADMIN, avatars["system"][0])
+        self.jira.set_user_avatar(
+            self.test_manager.CI_JIRA_ADMIN, avatars["system"][0]["id"]
+        )
         avatars = self.jira.user_avatars(self.test_manager.CI_JIRA_ADMIN)
-        self.assertEqual(find_selected_avatar(avatars)["id"], avatars["system"][0])
+        self.assertEqual(
+            find_selected_avatar(avatars)["id"], avatars["system"][0]["id"]
+        )
 
-        self.jira.set_user_avatar(self.test_manager.CI_JIRA_ADMIN, avatars["system"][1])
+        self.jira.set_user_avatar(
+            self.test_manager.CI_JIRA_ADMIN, avatars["system"][1]["id"]
+        )
         avatars = self.jira.user_avatars(self.test_manager.CI_JIRA_ADMIN)
-        self.assertEqual(find_selected_avatar(avatars)["id"], avatars["system"][1])
+        self.assertEqual(
+            find_selected_avatar(avatars)["id"], avatars["system"][1]["id"]
+        )
 
-    # WRONG
-    @broken_test(reason="disable until I have permissions to write/modify")
     def test_delete_user_avatar(self):
         size = os.path.getsize(TEST_ICON_PATH)
-        filename = os.path.basename(TEST_ICON_PATH)
         with open(TEST_ICON_PATH, "rb") as icon:
             props = self.jira.create_temp_user_avatar(
-                self.test_manager.CI_JIRA_ADMIN, filename, size, icon.read()
+                self.test_manager.CI_JIRA_ADMIN,
+                TEST_ICON_PATH,
+                size,
+                icon.read(),
+                auto_confirm=True,
             )
         self.jira.delete_user_avatar(self.test_manager.CI_JIRA_ADMIN, props["id"])
 
@@ -164,7 +167,6 @@ class UserTests(JiraTestCase):
         )
         self.assertGreaterEqual(len(users), 1)
 
-    @not_on_custom_jira_instance
     def test_search_allowed_users_for_issue_by_issue(self):
         users = self.jira.search_allowed_users_for_issue("a", issueKey=self.issue)
         self.assertGreaterEqual(len(users), 1)

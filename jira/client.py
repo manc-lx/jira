@@ -21,7 +21,6 @@ import time
 import warnings
 from collections import OrderedDict
 from collections.abc import Iterable
-from enum import Enum
 from functools import lru_cache, wraps
 from io import BufferedReader
 from numbers import Number
@@ -63,6 +62,7 @@ from jira.resources import (
     Customer,
     CustomFieldOption,
     Dashboard,
+    DeploymentType,
     Filter,
     GreenHopperResource,
     Group,
@@ -132,11 +132,6 @@ def _field_worker(
 
 
 ResourceType = TypeVar("ResourceType", contravariant=True, bound=Resource)
-
-
-class DeploymentType(Enum):
-    Server = 1
-    Cloud = 2
 
 
 class ResultList(list, Generic[ResourceType]):

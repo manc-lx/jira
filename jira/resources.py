@@ -9,11 +9,11 @@ import logging
 import re
 import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Type, Union, cast
+from enum import Enum
 
 from requests import Response
 from requests.structures import CaseInsensitiveDict
 
-from jira.client import DeploymentType
 from jira.resilientsession import ResilientSession
 from jira.utils import json_loads, threaded_requests
 
@@ -91,6 +91,9 @@ def get_error_list(r: Response) -> List[str]:
                 error_list = [r.text]
     return error_list
 
+class DeploymentType(Enum):
+    Server = 1
+    Cloud = 2
 
 class Resource(object):
     """Models a URL-addressable resource in the Jira REST API.

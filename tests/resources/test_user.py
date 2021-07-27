@@ -191,7 +191,7 @@ class UserTests(JiraTestCase):
 class UserCloudTests(JiraTestCase):
     def setUp(self):
         self.test_manager = JiraTestManager("Cloud")
-        JiraTestCase.setUp(self)
+        # JiraTestCase.setUp(self)
         self.issue = self.test_manager.project_b_issue3
 
     def test_user(self):

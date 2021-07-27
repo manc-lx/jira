@@ -1085,7 +1085,7 @@ class User(Resource):
         Resource.__init__(
             self,
             "user?username={0}"
-            if not deploymentType != DeploymentType.Cloud
+            if deploymentType != DeploymentType.Cloud
             else "user?accountId={0}",
             options,
             session,
